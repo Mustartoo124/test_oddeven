@@ -101,21 +101,28 @@ const broadcastGameStart = () => {
 };
 
 wss.on('connection', (ws) => {
+  console.log('✓ New client connected');
+  console.log('Total clients:', wss.clients.size);
+
   // Assign player
   let playerType = null;
 
   if (!gameState.oddPlayer) {
     gameState.oddPlayer = ws;
     playerType = 'ODD';
+    console.log('Assigned player: ODD');
     broadcastPlayerAssignment(ws, 'ODD', gameState.board);
   } else if (!gameState.evenPlayer) {
     gameState.evenPlayer = ws;
     playerType = 'EVEN';
+    console.log('Assigned player: EVEN');
     broadcastPlayerAssignment(ws, 'EVEN', gameState.board);
     // Both players connected, start game
+    console.log('Both players connected - starting game');
     broadcastGameStart();
   } else {
     // Third player - reject
+    console.log('Third player attempted to join - rejecting');
     ws.send(JSON.stringify({
       type: 'ERROR',
       message: 'Game is full. Only 2 players allowed.',
