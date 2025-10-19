@@ -134,22 +134,27 @@ wss.on('connection', (ws) => {
   ws.on('message', (data) => {
     try {
       const message = JSON.parse(data);
+      console.log('Server received:', message.type, 'from', playerType);
 
       if (message.type === 'INCREMENT') {
         // Ignore moves after game is over
         if (gameState.gameOver) {
+          console.log('Game is over - ignoring move');
           return;
         }
 
         const square = message.square;
+        console.log('Processing INCREMENT on square', square);
 
         if (square < 0 || square >= 25) {
+          console.error('Invalid square:', square);
           return;
         }
 
         // Increment the value
         gameState.board[square] += 1;
         const newValue = gameState.board[square];
+        console.log('Square', square, 'incremented to', newValue);
 
         // Broadcast the update to all clients
         broadcastUpdate(square, newValue);
@@ -157,12 +162,14 @@ wss.on('connection', (ws) => {
         // Check for winner
         const result = checkWin(gameState.board);
         if (result) {
+          console.log('WINNER DETECTED:', result.winner);
           gameState.gameOver = true;
           gameState.winner = result.winner;
           gameState.winningLine = result.winningLine;
           broadcastGameOver(result.winner, result.winningLine);
         }
       } else if (message.type === 'RESTART') {
+        console.log('Restarting game');
         // Reset game state for a new game
         gameState = {
           board: Array(25).fill(0),
@@ -175,6 +182,7 @@ wss.on('connection', (ws) => {
 
         // Broadcast game start to both players
         if (gameState.oddPlayer && gameState.evenPlayer) {
+          console.log('Broadcasting game start');
           broadcastGameStart();
         }
       }
