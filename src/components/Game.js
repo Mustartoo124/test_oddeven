@@ -47,7 +47,6 @@ function Game() {
   const [gameStarted, setGameStarted] = useState(false);
   const [pendingSquares, setPendingSquares] = useState(new Set());
   const [chaosMode, setChaosMode] = useState(false);
-  const [chaosDelay, setChaosDelay] = useState(500);
   const wsRef = useRef(null);
   const originalSendRef = useRef(null);
 
