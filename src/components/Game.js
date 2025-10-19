@@ -52,7 +52,6 @@ function Game() {
 
   const handleChaosToggle = (enabled, delay) => {
     setChaosMode(enabled);
-    setChaosDelay(delay);
 
     if (!wsRef.current) return;
 
