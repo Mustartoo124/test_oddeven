@@ -82,9 +82,11 @@ function Game() {
       return;
     }
 
-    // Try to determine the correct host
+    // Determine WebSocket URL based on current page protocol
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname || 'localhost';
-    const wsUrl = `ws://${host}:8081/`;
+    const port = window.location.port ? `:${window.location.port}` : '';
+    const wsUrl = `${protocol}//${host}${port}/`;
     console.log('Attempting to connect to:', wsUrl);
 
     const ws = new WebSocket(wsUrl);
@@ -222,7 +224,7 @@ function Game() {
       : winner === 'ODD'
       ? 'ODD PLAYER WINS! 🎉'
       : winner === 'EVEN'
-      ? 'EVEN PLAYER WINS! ����'
+      ? 'EVEN PLAYER WINS! 🎉'
       : gameStarted
       ? `Active Game - ${connectionStatus}`
       : connectionStatus;
