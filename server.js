@@ -233,6 +233,13 @@ wss.on('connection', (ws) => {
 });
 
 const PORT = process.env.PORT || 8081;
-server.listen(PORT, () => {
-  console.log(`WebSocket server listening on port ${PORT}`);
+
+server.on('error', (err) => {
+  console.error('Server error:', err);
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`✓ WebSocket server listening on port ${PORT}`);
+  console.log(`✓ HTTP server ready on http://0.0.0.0:${PORT}`);
+  console.log(`✓ WebSocket endpoint: ws://localhost:${PORT}`);
 });
