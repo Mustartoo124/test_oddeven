@@ -154,16 +154,20 @@ function Game() {
       }
     };
 
-    ws.onclose = () => {
-      console.log('Disconnected from server');
+    ws.onclose = (event) => {
+      console.log('WebSocket closed');
+      console.log('Close code:', event.code);
+      console.log('Close reason:', event.reason);
+      console.log('Was clean?:', event.wasClean);
       setConnectionStatus('Disconnected');
     };
 
     ws.onerror = (err) => {
-      console.error('WebSocket error event:', err);
-      console.error('WebSocket ready state:', ws.readyState);
+      console.error('❌ WebSocket error event:', err);
+      console.error('Ready state:', ws.readyState, '(3=CLOSED, 0=CONNECTING, 1=OPEN)');
       console.error('WebSocket URL:', ws.url);
-      setConnectionStatus('Connection error - check console for details');
+      console.error('Error type:', err.type);
+      setConnectionStatus('Connection error - server may not be running on port 8081');
     };
 
     return () => {
