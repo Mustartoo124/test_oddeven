@@ -1,123 +1,279 @@
 import React, { useState, useEffect, useRef } from "react";
 import Board from "./Board";
+import ChaosMode from "./ChaosMode";
 
-const calculateWinner = (squares) => {
+const checkWin = (board) => {
   const lines = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    [0, 4, 8],
-    [2, 4, 6],
+    // Rows
+    [0, 1, 2, 3, 4],
+    [5, 6, 7, 8, 9],
+    [10, 11, 12, 13, 14],
+    [15, 16, 17, 18, 19],
+    [20, 21, 22, 23, 24],
+    // Columns
+    [0, 5, 10, 15, 20],
+    [1, 6, 11, 16, 21],
+    [2, 7, 12, 17, 22],
+    [3, 8, 13, 18, 23],
+    [4, 9, 14, 19, 24],
+    // Diagonals
+    [0, 6, 12, 18, 24],
+    [4, 8, 12, 16, 20],
   ];
-  for (const [a, b, c] of lines) {
-    if (
-      squares[a] &&
-      squares[a] === squares[b] &&
-      squares[a] === squares[c]
-    ) {
-      return squares[a];
-    }
-  }
 
-  if (!squares.includes(null)) {
-    return 'Draw';
+  for (const line of lines) {
+    const values = line.map(i => board[i]);
+
+    // Check if all odd
+    if (values.every(v => v > 0 && v % 2 === 1)) {
+      return { winner: 'ODD', winningLine: line };
+    }
+
+    // Check if all even
+    if (values.every(v => v > 0 && v % 2 === 0)) {
+      return { winner: 'EVEN', winningLine: line };
+    }
   }
 
   return null;
 };
 
-
 function Game() {
-  const [squares, setSquares] = useState(Array(9).fill(null));
+  const [board, setBoard] = useState(Array(25).fill(0));
   const [player, setPlayer] = useState(null);
-  const [isPlayable, setIsPlayable] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('Connecting...');
   const [winner, setWinner] = useState(null);
+  const [winningLine, setWinningLine] = useState(null);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [pendingSquares, setPendingSquares] = useState(new Set());
+  const [chaosMode, setChaosMode] = useState(false);
   const wsRef = useRef(null);
+  const originalSendRef = useRef(null);
 
+  const handleChaosToggle = (enabled, delay) => {
+    setChaosMode(enabled);
+
+    if (!wsRef.current) return;
+
+    if (enabled) {
+      // Wrap the send function with chaos delay
+      if (!originalSendRef.current) {
+        originalSendRef.current = wsRef.current.send.bind(wsRef.current);
+      }
+
+      wsRef.current.send = (data) => {
+        const randomDelay = Math.random() * delay;
+        setTimeout(() => {
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            originalSendRef.current(data);
+          }
+        }, randomDelay);
+      };
+    } else {
+      // Restore original send function
+      if (originalSendRef.current) {
+        wsRef.current.send = originalSendRef.current;
+      }
+    }
+  };
 
   useEffect(() => {
     if (wsRef.current) {
       return;
     }
 
-    const ws = new WebSocket('ws://localhost:8081');
+    // Determine WebSocket URL based on current page protocol
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname || 'localhost';
+    const port = window.location.port ? `:${window.location.port}` : '';
+    const wsUrl = `${protocol}//${host}${port}/`;
+    console.log('Attempting to connect to:', wsUrl);
+
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
+    originalSendRef.current = ws.send.bind(ws);
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({
-        type: 'prepare'
-      }));
+      console.log('✓ WebSocket connected successfully');
+      console.log('Ready state:', ws.readyState, '(OPEN)');
+      setConnectionStatus('Connected');
     };
 
-    wsRef.current.onmessage = (event) => {
-      const { type, data } = JSON.parse(event.data);
-  
-      console.log('player', player);
-      switch(type) {
-        case 'start':
-          setIsPlayable(data.player === 'X');
-          setPlayer(data.player);
-          break;
-        case 'display':
-          setIsPlayable(data.nextPlayer === player);
-          setSquares(data.squares);
-          break;
-        default:
-          break;
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log('Received message:', message);
+
+        switch (message.type) {
+          case 'PLAYER_ASSIGNED':
+            setPlayer(message.player);
+            setBoard([...message.board]);
+            setWinner(null);
+            setWinningLine(null);
+            setConnectionStatus('Waiting for opponent...');
+            break;
+
+          case 'GAME_START':
+            setGameStarted(true);
+            setConnectionStatus('Connected');
+            setBoard([...message.board]);
+            setWinner(null);
+            setWinningLine(null);
+            setPendingSquares(new Set());
+            break;
+
+          case 'UPDATE':
+            setBoard([...message.board]);
+            setPendingSquares(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(message.square);
+              return newSet;
+            });
+
+            // Check for win after update
+            const result = checkWin(message.board);
+            if (result) {
+              setWinner(result.winner);
+              setWinningLine(result.winningLine);
+            }
+            break;
+
+          case 'GAME_OVER':
+            if (message.winner === 'DISCONNECT') {
+              setConnectionStatus('Opponent disconnected');
+              setWinner('DISCONNECT');
+            } else {
+              setWinner(message.winner);
+              setWinningLine(message.winningLine);
+            }
+            break;
+
+          case 'ERROR':
+            setConnectionStatus('Error: ' + message.message);
+            break;
+
+          default:
+            break;
+        }
+      } catch (err) {
+        console.error('Error parsing message:', err);
       }
+    };
+
+    ws.onclose = (event) => {
+      console.log('WebSocket closed');
+      console.log('Close code:', event.code);
+      console.log('Close reason:', event.reason);
+      console.log('Was clean?:', event.wasClean);
+      setConnectionStatus('Disconnected');
+    };
+
+    ws.onerror = (err) => {
+      console.error('❌ WebSocket error event:', err);
+      console.error('Ready state:', ws.readyState, '(3=CLOSED, 0=CONNECTING, 1=OPEN)');
+      console.error('WebSocket URL:', ws.url);
+      console.error('Error type:', err.type);
+      setConnectionStatus('Connection error - server may not be running on port 8081');
     };
 
     return () => {
       ws.close();
       wsRef.current = null;
-    }
-
+    };
   }, []);
 
-  //Declaring a Winner
-  useEffect(() => {
-    setWinner(calculateWinner(squares));
-  }, [squares]);
-
-
-  //Handle player
-  const handleClick = (i) => {
-    if (winner || squares[i] || !isPlayable) {
+  const handleClick = (squareIndex) => {
+    if (!gameStarted || winner || !wsRef.current) {
       return;
     }
 
-    squares[i] = player;
-    setSquares([...squares]);
+    // Optimistic update
+    const newBoard = [...board];
+    newBoard[squareIndex] += 1;
+    setBoard(newBoard);
 
-    wsRef.current.send(JSON.stringify({
-      data: {
-        squares,
-        nextPlayer: player === 'X' ? 'O' : 'X',
-      },
-      type: 'move',
-    }));
+    // Track as pending
+    setPendingSquares(prev => new Set(prev).add(squareIndex));
+
+    // Send to server
+    wsRef.current.send(
+      JSON.stringify({
+        type: 'INCREMENT',
+        square: squareIndex,
+      })
+    );
   };
 
-  //Restart game
-  const handlRestart = () => {
+  const handleRestart = () => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'RESTART',
+        })
+      );
+    }
     setWinner(null);
-    setSquares(Array(9).fill(null));
+    setWinningLine(null);
+    setBoard(Array(25).fill(0));
   };
+
+  const playerDisplay = player ? `You are ${player} Player` : 'Assigning player...';
+  const statusDisplay =
+    winner === 'DISCONNECT'
+      ? 'Opponent disconnected - Game ended'
+      : winner === 'ODD'
+      ? 'ODD PLAYER WINS! 🎉'
+      : winner === 'EVEN'
+      ? 'EVEN PLAYER WINS! 🎉'
+      : gameStarted
+      ? `Active Game - ${connectionStatus}`
+      : connectionStatus;
 
   return (
     <div className="main">
-      <h2 className="result">Winner is: {winner ? winner : "N/N"}</h2>
-      <div className="game">
-        <span>{ isPlayable ? 'Your turn' : 'Please wait for the opponent' }</span>
-        <span className="player">Next player is: { isPlayable ? player : player === 'X' ? 'O' : 'X' }</span>
-        <Board squares={squares} handleClick={handleClick} />
+      <div className="game-header">
+        <h1 className="game-title">Odd/Even Tic-Tac-Toe</h1>
+        <p className="player-info">{playerDisplay}</p>
+        <p className="connection-status">{statusDisplay}</p>
       </div>
-      <button onClick={handlRestart} className="restart-btn">
-        Restart
-      </button>
+
+      <ChaosMode onToggle={handleChaosToggle} isEnabled={chaosMode} />
+
+      {gameStarted && !winner && (
+        <div className="game-instructions">
+          <p>Click any square to increment by 1</p>
+          <p>
+            {player === 'ODD'
+              ? 'Help odd numbers win (1, 3, 5, 7, ...)'
+              : 'Help even numbers win (2, 4, 6, 8, ...)'}
+          </p>
+        </div>
+      )}
+
+      <Board
+        board={board}
+        handleClick={handleClick}
+        gameStarted={gameStarted}
+        winner={winner}
+        winningLine={winningLine}
+        pendingSquares={pendingSquares}
+      />
+
+      {winner && (
+        <div className="game-over-message">
+          {winner === 'DISCONNECT' ? (
+            <h2 className="result">Game Ended</h2>
+          ) : (
+            <h2 className="result">{winner} PLAYER WINS!</h2>
+          )}
+        </div>
+      )}
+
+      {winner && (
+        <button onClick={handleRestart} className="restart-btn">
+          Start New Game
+        </button>
+      )}
     </div>
   );
 }
