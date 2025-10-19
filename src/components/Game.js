@@ -155,13 +155,16 @@ function Game() {
   };
 
   const handleRestart = () => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'RESTART',
+        })
+      );
+    }
     setWinner(null);
     setWinningLine(null);
     setBoard(Array(25).fill(0));
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      // Could implement restart logic on server
-      window.location.reload(); // Simple restart for now
-    }
   };
 
   const playerDisplay = player ? `You are ${player} Player` : 'Assigning player...';
