@@ -82,12 +82,14 @@ function Game() {
       return;
     }
 
+    console.log('Attempting to connect to ws://localhost:8081');
     const ws = new WebSocket('ws://localhost:8081');
     wsRef.current = ws;
     originalSendRef.current = ws.send.bind(ws);
 
     ws.onopen = () => {
-      console.log('Connected to server');
+      console.log('✓ WebSocket connected successfully');
+      console.log('Ready state:', ws.readyState, '(OPEN)');
       setConnectionStatus('Connected');
     };
 
