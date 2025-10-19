@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Board from "./Board";
+import ChaosMode from "./ChaosMode";
 
 const checkWin = (board) => {
   const lines = [
