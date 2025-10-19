@@ -51,6 +51,34 @@ function Game() {
   const wsRef = useRef(null);
   const originalSendRef = useRef(null);
 
+  const handleChaosToggle = (enabled, delay) => {
+    setChaosMode(enabled);
+    setChaosDelay(delay);
+
+    if (!wsRef.current) return;
+
+    if (enabled) {
+      // Wrap the send function with chaos delay
+      if (!originalSendRef.current) {
+        originalSendRef.current = wsRef.current.send.bind(wsRef.current);
+      }
+
+      wsRef.current.send = (data) => {
+        const randomDelay = Math.random() * delay;
+        setTimeout(() => {
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            originalSendRef.current(data);
+          }
+        }, randomDelay);
+      };
+    } else {
+      // Restore original send function
+      if (originalSendRef.current) {
+        wsRef.current.send = originalSendRef.current;
+      }
+    }
+  };
+
   useEffect(() => {
     if (wsRef.current) {
       return;
@@ -58,6 +86,7 @@ function Game() {
 
     const ws = new WebSocket('ws://localhost:8081');
     wsRef.current = ws;
+    originalSendRef.current = ws.send.bind(ws);
 
     ws.onopen = () => {
       console.log('Connected to server');
