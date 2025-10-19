@@ -125,14 +125,15 @@ wss.on('connection', (ws) => {
   }
 
   ws.on('message', (data) => {
-    if (gameState.gameOver) {
-      return; // Ignore moves after game is over
-    }
-
     try {
       const message = JSON.parse(data);
 
       if (message.type === 'INCREMENT') {
+        // Ignore moves after game is over
+        if (gameState.gameOver) {
+          return;
+        }
+
         const square = message.square;
 
         if (square < 0 || square >= 25) {
@@ -153,6 +154,21 @@ wss.on('connection', (ws) => {
           gameState.winner = result.winner;
           gameState.winningLine = result.winningLine;
           broadcastGameOver(result.winner, result.winningLine);
+        }
+      } else if (message.type === 'RESTART') {
+        // Reset game state for a new game
+        gameState = {
+          board: Array(25).fill(0),
+          oddPlayer: gameState.oddPlayer,
+          evenPlayer: gameState.evenPlayer,
+          gameOver: false,
+          winner: null,
+          winningLine: null,
+        };
+
+        // Broadcast game start to both players
+        if (gameState.oddPlayer && gameState.evenPlayer) {
+          broadcastGameStart();
         }
       }
     } catch (err) {
