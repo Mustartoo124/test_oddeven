@@ -82,8 +82,12 @@ function Game() {
       return;
     }
 
-    console.log('Attempting to connect to ws://localhost:8081');
-    const ws = new WebSocket('ws://localhost:8081');
+    // Try to determine the correct host
+    const host = window.location.hostname || 'localhost';
+    const wsUrl = `ws://${host}:8081/`;
+    console.log('Attempting to connect to:', wsUrl);
+
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     originalSendRef.current = ws.send.bind(ws);
 
@@ -218,7 +222,7 @@ function Game() {
       : winner === 'ODD'
       ? 'ODD PLAYER WINS! 🎉'
       : winner === 'EVEN'
-      ? 'EVEN PLAYER WINS! 🎉'
+      ? 'EVEN PLAYER WINS! ����'
       : gameStarted
       ? `Active Game - ${connectionStatus}`
       : connectionStatus;
