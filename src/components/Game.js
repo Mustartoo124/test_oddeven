@@ -158,8 +158,10 @@ function Game() {
     };
 
     ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
-      setConnectionStatus('Connection error');
+      console.error('WebSocket error event:', err);
+      console.error('WebSocket ready state:', ws.readyState);
+      console.error('WebSocket URL:', ws.url);
+      setConnectionStatus('Connection error - check console for details');
     };
 
     return () => {
