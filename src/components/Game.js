@@ -160,7 +160,7 @@ function Game() {
     setBoard(Array(25).fill(0));
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       // Could implement restart logic on server
-      location.reload(); // Simple restart for now
+      window.location.reload(); // Simple restart for now
     }
   };
 
