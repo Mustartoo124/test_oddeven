@@ -69,6 +69,8 @@ function Game() {
           case 'PLAYER_ASSIGNED':
             setPlayer(message.player);
             setBoard([...message.board]);
+            setWinner(null);
+            setWinningLine(null);
             setConnectionStatus('Waiting for opponent...');
             break;
 
@@ -76,6 +78,9 @@ function Game() {
             setGameStarted(true);
             setConnectionStatus('Connected');
             setBoard([...message.board]);
+            setWinner(null);
+            setWinningLine(null);
+            setPendingSquares(new Set());
             break;
 
           case 'UPDATE':
