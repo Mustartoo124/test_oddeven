@@ -225,6 +225,8 @@ function Game() {
         <p className="connection-status">{statusDisplay}</p>
       </div>
 
+      <ChaosMode onToggle={handleChaosToggle} isEnabled={chaosMode} />
+
       {gameStarted && !winner && (
         <div className="game-instructions">
           <p>Click any square to increment by 1</p>
